@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Air Dominance - Realistic Air Combat</title>
+    <title>Air Dominance - Raptor Intercept</title>
     <style>
         * {
             box-sizing: border-box;
@@ -59,6 +59,11 @@
             border-radius: 8px;
             backdrop-filter: blur(8px);
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .hud-center {
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
         }
         .stat-label {
             font-size: 11px;
@@ -138,6 +143,20 @@
             transform: translateY(-2px) scale(1.04);
             box-shadow: 0 0 35px rgba(0, 240, 255, 0.8);
         }
+        .icon-btn {
+            padding: 10px 18px;
+            font-size: 14px;
+            border-radius: 8px;
+            background: rgba(10, 20, 35, 0.65);
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            color: #00f0ff;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .icon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+        }
         .controls-card {
             margin-top: 30px;
             padding: 12px 24px;
@@ -161,6 +180,11 @@
                 <div class="stat-label">Tactical Score</div>
                 <div id="scoreDisplay" class="stat-value">000,000</div>
             </div>
+            
+            <div class="hud-center">
+                <button id="pauseButton" class="icon-btn">⏸ PAUSE (ESC)</button>
+            </div>
+
             <div class="hud-panel" style="text-align: right;">
                 <div class="stat-label">Structural Hull</div>
                 <div id="healthText" class="stat-value">100%</div>
@@ -172,10 +196,17 @@
     </div>
 
     <div id="startScreen" class="screen">
-        <h1>SU-57 INTERCEPTOR</h1>
-        <p>Tactical Air Engagement Simulator</p>
+        <h1>F-22 RAPTOR DOGFIGHT</h1>
+        <p>Raptor vs. Raptor Air Supremacy Combat</p>
         <button id="startButton">INITIATE LAUNCH</button>
-        <div class="controls-card">PILOT CONTROLS: <b>WASD / ARROWS</b> &nbsp;|&nbsp; 20MM VULCAN: <b>SPACEBAR</b></div>
+        <div class="controls-card">PILOT CONTROLS: <b>WASD / ARROWS</b> &nbsp;|&nbsp; FIRE: <b>SPACEBAR</b> &nbsp;|&nbsp; PAUSE: <b>ESC</b></div>
+    </div>
+
+    <div id="pauseScreen" class="screen hidden">
+        <h1>TACTICAL PAUSE</h1>
+        <p>MISSION SUSPENDED</p>
+        <button id="resumeButton">RESUME FLIGHT</button>
+        <div class="controls-card">PRESS <b>ESC</b> TO RESUME</div>
     </div>
 
     <div id="gameOverScreen" class="screen hidden">
@@ -191,8 +222,11 @@ const ctx = canvas.getContext('2d');
 
 // UI Elements
 const startScreen = document.getElementById('startScreen');
+const pauseScreen = document.getElementById('pauseScreen');
 const gameOverScreen = document.getElementById('gameOverScreen');
 const startButton = document.getElementById('startButton');
+const pauseButton = document.getElementById('pauseButton');
+const resumeButton = document.getElementById('resumeButton');
 const restartButton = document.getElementById('restartButton');
 const scoreDisplay = document.getElementById('scoreDisplay');
 const healthText = document.getElementById('healthText');
@@ -201,6 +235,7 @@ const finalScore = document.getElementById('finalScore');
 
 // Game Engine Parameters
 let gameRunning = false;
+let isPaused = false;
 let score = 0;
 let animationFrameId;
 let enemySpawnTimer = 0;
@@ -208,8 +243,18 @@ let screenShake = 0;
 
 // Input Handling
 const keys = {};
-window.addEventListener('keydown', e => { if (e.code === 'Space') keys['Space'] = true; keys[e.key] = true; });
-window.addEventListener('keyup', e => { if (e.code === 'Space') keys['Space'] = false; keys[e.key] = false; });
+window.addEventListener('keydown', e => { 
+    if (e.code === 'Space') keys['Space'] = true; 
+    keys[e.key] = true; 
+
+    if (e.key === 'Escape' && gameRunning) {
+        togglePause();
+    }
+});
+window.addEventListener('keyup', e => { 
+    if (e.code === 'Space') keys['Space'] = false; 
+    keys[e.key] = false; 
+});
 
 // Sound Synthesizer
 let audioCtx;
@@ -219,7 +264,7 @@ function initAudio() {
 }
 
 function playCannonSound() {
-    if (!audioCtx) return;
+    if (!audioCtx || isPaused) return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'sawtooth';
@@ -532,16 +577,15 @@ class RealBullet {
     }
 }
 
-// Highly Realistic Enemy Jet (Su-57 Stealth Flanker Anatomy)
+// Enemy Jet Class (Hostile F-22 Raptor Facing Left)
 class RealisticEnemyJet {
     constructor() {
         this.x = canvas.width + 60;
         this.y = Math.random() * (canvas.height - 100) + 50;
         this.speed = Math.random() * 2.5 + 4.5;
-        this.radius = 22;
+        this.radius = 20;
         this.markedForDeletion = false;
         
-        // Realistic flight wave oscillation
         this.initialY = this.y;
         this.waveAngle = Math.random() * Math.PI * 2;
         this.waveSpeed = Math.random() * 0.05 + 0.02;
@@ -553,11 +597,9 @@ class RealisticEnemyJet {
     update() {
         this.x -= this.speed;
         
-        // Dynamic Sine-Wave Evasive Maneuvers
         this.waveAngle += this.waveSpeed;
         this.y = this.initialY + Math.sin(this.waveAngle) * this.waveAmplitude;
 
-        // Exhaust heat trails
         this.trail.push({ x: this.x + 45, y: this.y, alpha: 0.4, size: 4 });
         if (this.trail.length > 15) this.trail.shift();
         this.trail.forEach(t => { t.x += 3; t.alpha -= 0.025; t.size += 0.4; });
@@ -566,7 +608,6 @@ class RealisticEnemyJet {
     }
 
     draw() {
-        // Heat Haze Trail
         this.trail.forEach(t => {
             if (t.alpha > 0) {
                 ctx.fillStyle = `rgba(239, 68, 68, ${t.alpha * 0.3})`;
@@ -579,126 +620,112 @@ class RealisticEnemyJet {
         ctx.save();
         ctx.translate(this.x, this.y);
 
-        // 1. Dual Vectoring Thrust Engines (Facing Right for Leftward Movement)
-        [-7, 7].forEach(offsetY => {
-            const flameLen = 28 + Math.random() * 12;
-            const abGrad = ctx.createLinearGradient(40, offsetY, 40 + flameLen, offsetY);
+        [-8, 8].forEach(offsetY => {
+            const flameLen = 30 + Math.random() * 10;
+            const abGrad = ctx.createLinearGradient(42, offsetY, 42 + flameLen, offsetY);
             abGrad.addColorStop(0, '#ffffff');
             abGrad.addColorStop(0.2, '#ef4444');
-            abGrad.addColorStop(0.7, '#f97316');
+            abGrad.addColorStop(0.6, '#f97316');
             abGrad.addColorStop(1, 'transparent');
 
             ctx.fillStyle = abGrad;
             ctx.beginPath();
-            ctx.moveTo(40, offsetY - 3.5);
-            ctx.lineTo(40 + flameLen, offsetY);
-            ctx.lineTo(40, offsetY + 3.5);
+            ctx.moveTo(42, offsetY - 4);
+            ctx.lineTo(42 + flameLen, offsetY);
+            ctx.lineTo(42, offsetY + 4);
             ctx.closePath();
             ctx.fill();
         });
 
-        // 2. Wide Swept Blended Wings (Realistic Su-57 Diamond Silhouette)
-        const wingGrad = ctx.createLinearGradient(0, -48, 0, 48);
+        const wingGrad = ctx.createLinearGradient(0, -45, 0, 45);
         wingGrad.addColorStop(0, '#1e293b');
-        wingGrad.addColorStop(0.3, '#334155');
+        wingGrad.addColorStop(0.2, '#334155');
         wingGrad.addColorStop(0.5, '#475569');
-        wingGrad.addColorStop(0.7, '#334155');
+        wingGrad.addColorStop(0.8, '#334155');
         wingGrad.addColorStop(1, '#0f172a');
 
         ctx.fillStyle = wingGrad;
         ctx.beginPath();
-        ctx.moveTo(15, 0);
-        ctx.lineTo(28, -48);
-        ctx.lineTo(-10, -48);
-        ctx.lineTo(-32, 0);
-        ctx.lineTo(-10, 48);
-        ctx.lineTo(28, 48);
+        ctx.moveTo(10, 0);
+        ctx.lineTo(25, -45);
+        ctx.lineTo(-5, -45);
+        ctx.lineTo(-30, 0);
+        ctx.lineTo(-5, 45);
+        ctx.lineTo(25, 45);
         ctx.closePath();
         ctx.fill();
 
-        // Digital Camouflage Armor Plates (Splinter Camo)
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.moveTo(10, -25); ctx.lineTo(22, -45); ctx.lineTo(0, -45); ctx.closePath(); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(10, 25); ctx.lineTo(22, 45); ctx.lineTo(0, 45); ctx.closePath(); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(-10, -10); ctx.lineTo(-25, 0); ctx.lineTo(-10, 10); ctx.closePath(); ctx.fill();
-
-        // Panel Trim Lines
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(20, -42); ctx.lineTo(-5, -42); ctx.lineTo(-20, 0);
-        ctx.moveTo(20, 42); ctx.lineTo(-5, 42); ctx.lineTo(-20, 0);
+        ctx.moveTo(20, -40); ctx.lineTo(-2, -40); ctx.lineTo(-18, 0);
+        ctx.moveTo(20, 40); ctx.lineTo(-2, 40); ctx.lineTo(-18, 0);
         ctx.stroke();
 
-        // 3. Engine Nacelles & Blended Wing Body
-        const nacelleGrad = ctx.createLinearGradient(0, -12, 0, 12);
-        nacelleGrad.addColorStop(0, '#0f172a');
-        nacelleGrad.addColorStop(0.5, '#334155');
-        nacelleGrad.addColorStop(1, '#0f172a');
-        ctx.fillStyle = nacelleGrad;
-        ctx.fillRect(-12, -13, 50, 26);
+        const intakeGrad = ctx.createLinearGradient(0, -14, 0, 14);
+        intakeGrad.addColorStop(0, '#0f172a');
+        intakeGrad.addColorStop(0.5, '#334155');
+        intakeGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = intakeGrad;
+        ctx.fillRect(-10, -14, 38, 28);
 
-        // 4. Fuselage Main Body (Facing Left)
+        ctx.fillStyle = '#020617';
+        ctx.beginPath();
+        ctx.moveTo(-10, -14); ctx.lineTo(-5, -14); ctx.lineTo(0, -9); ctx.lineTo(-10, -9); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-10, 14); ctx.lineTo(-5, 14); ctx.lineTo(0, 9); ctx.lineTo(-10, 9); ctx.fill();
+
         const fuseGrad = ctx.createLinearGradient(0, -9, 0, 9);
         fuseGrad.addColorStop(0, '#475569');
         fuseGrad.addColorStop(0.4, '#334155');
-        fuseGrad.addColorStop(0.8, '#1e293b');
+        fuseGrad.addColorStop(0.7, '#1e293b');
         fuseGrad.addColorStop(1, '#0f172a');
         ctx.fillStyle = fuseGrad;
         ctx.beginPath();
-        ctx.moveTo(-62, 0); // Nose Tip Facing Left
-        ctx.lineTo(-22, -8.5);
-        ctx.lineTo(38, -8.5);
-        ctx.lineTo(38, 8.5);
-        ctx.lineTo(-22, 8.5);
+        ctx.moveTo(-60, 0);
+        ctx.lineTo(-20, -9);
+        ctx.lineTo(42, -9);
+        ctx.lineTo(42, 9);
+        ctx.lineTo(-20, 9);
         ctx.closePath();
         ctx.fill();
 
-        // Radome Nose Tip (IR Sensor Housing)
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.moveTo(-62, 0);
-        ctx.lineTo(-48, -4);
-        ctx.lineTo(-48, 4);
+        ctx.moveTo(-60, 0);
+        ctx.lineTo(-45, -4.5);
+        ctx.lineTo(-45, 4.5);
         ctx.closePath();
         ctx.fill();
 
-        // 5. Canted Twin Tail Fins
         const tailGrad = ctx.createLinearGradient(0, -22, 0, 22);
         tailGrad.addColorStop(0, '#0f172a');
         tailGrad.addColorStop(0.5, '#1e293b');
         tailGrad.addColorStop(1, '#020617');
         ctx.fillStyle = tailGrad;
 
-        // Upper Tail Fin
         ctx.beginPath();
-        ctx.moveTo(20, -6); ctx.lineTo(38, -24); ctx.lineTo(25, -24); ctx.lineTo(8, -6);
+        ctx.moveTo(25, -6); ctx.lineTo(44, -22); ctx.lineTo(30, -22); ctx.lineTo(12, -6);
         ctx.closePath(); ctx.fill();
 
-        // Lower Tail Fin
         ctx.beginPath();
-        ctx.moveTo(20, 6); ctx.lineTo(38, 24); ctx.lineTo(25, 24); ctx.lineTo(8, 6);
+        ctx.moveTo(25, 6); ctx.lineTo(44, 22); ctx.lineTo(30, 22); ctx.lineTo(12, 6);
         ctx.closePath(); ctx.fill();
 
-        // 6. Crimson Tinted Cockpit Glass
-        const canopyGrad = ctx.createLinearGradient(-30, -4, -10, 4);
+        const canopyGrad = ctx.createLinearGradient(-30, -5, -10, 5);
         canopyGrad.addColorStop(0, '#450a0a');
-        canopyGrad.addColorStop(0.4, '#dc2626'); // Threat Red Tint
-        canopyGrad.addColorStop(0.8, '#f59e0b');
+        canopyGrad.addColorStop(0.3, '#dc2626');
+        canopyGrad.addColorStop(0.7, '#f59e0b');
         canopyGrad.addColorStop(1, '#0f172a');
         ctx.fillStyle = canopyGrad;
         ctx.beginPath();
-        ctx.ellipse(-24, 0, 14, 4.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(-22, 0, 16, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Canopy Specular Flare Highlight
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.arc(-24, -1.5, 8, Math.PI * 1.1, Math.PI * 1.6);
+        ctx.arc(-24, -2, 10, Math.PI * 1.1, Math.PI * 1.6);
         ctx.stroke();
 
         ctx.restore();
@@ -765,14 +792,29 @@ function initGame() {
     score = 0;
     enemySpawnTimer = 0;
     screenShake = 0;
+    isPaused = false;
 
     scoreDisplay.textContent = '000,000';
     healthText.textContent = '100%';
     healthFill.style.width = '100%';
 }
 
-function gameLoop() {
+function togglePause() {
     if (!gameRunning) return;
+    isPaused = !isPaused;
+
+    if (isPaused) {
+        pauseScreen.classList.remove('hidden');
+        pauseButton.textContent = '▶ RESUME (ESC)';
+    } else {
+        pauseScreen.classList.add('hidden');
+        pauseButton.textContent = '⏸ PAUSE (ESC)';
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+function gameLoop() {
+    if (!gameRunning || isPaused) return;
 
     ctx.save();
     if (screenShake > 0) {
@@ -838,11 +880,14 @@ function startGame() {
     gameRunning = true;
     startScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
+    pauseScreen.classList.add('hidden');
+    pauseButton.textContent = '⏸ PAUSE (ESC)';
     requestAnimationFrame(gameLoop);
 }
 
 function endGame() {
     gameRunning = false;
+    isPaused = false;
     cancelAnimationFrame(animationFrameId);
     playExplosionSound();
     finalScore.textContent = `FINAL SCORE: ${score}`;
@@ -851,6 +896,8 @@ function endGame() {
 
 startButton.addEventListener('click', startGame);
 restartButton.addEventListener('click', startGame);
+pauseButton.addEventListener('click', togglePause);
+resumeButton.addEventListener('click', togglePause);
 </script>
 
 </body>
