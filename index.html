@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Dominance - Realistic Jet Interceptor</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body {
+            background-color: #050811;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #fff;
+            overflow: hidden;
+        }
+        #game-wrapper {
+            position: relative;
+            width: 1000px;
+            height: 562px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 229, 255, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 229, 255, 0.3);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px;
+        }
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .hud-panel {
+            background: rgba(10, 20, 35, 0.65);
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            padding: 10px 20px;
+            border-radius: 8px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #7dd3fc;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 2px;
+            font-weight: 700;
+        }
+        .stat-value {
+            font-size: 22px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 900;
+            color: #00f0ff;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+        .health-bar-bg {
+            width: 160px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            margin-top: 4px;
+        }
+        .health-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff3366, #00f0ff);
+            box-shadow: 0 0 10px #00f0ff;
+            transition: width 0.2s ease;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.85), rgba(3, 7, 18, 0.95));
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            font-size: 52px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, #ffffff 0%, #00e5ff 50%, #0055ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 10px 30px rgba(0, 229, 255, 0.3);
+            margin-bottom: 8px;
+        }
+        p {
+            font-size: 16px;
+            color: #94a3b8;
+            margin-bottom: 28px;
+        }
+        button {
+            padding: 14px 40px;
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #040d1a;
+            background: linear-gradient(135deg, #00f0ff, #0077ff);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
+            transition: all 0.25s ease;
+        }
+        button:hover {
+            transform: translateY(-2px) scale(1.04);
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.8);
+        }
+        .controls-card {
+            margin-top: 30px;
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            font-size: 13px;
+            color: #64748b;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <canvas id="gameCanvas" width="1000" height="562"></canvas>
+    
+    <div class="ui-layer">
+        <div class="hud">
+            <div class="hud-panel">
+                <div class="stat-label">Tactical Score</div>
+                <div id="scoreDisplay" class="stat-value">000,000</div>
+            </div>
+            <div class="hud-panel" style="text-align: right;">
+                <div class="stat-label">Structural Hull</div>
+                <div id="healthText" class="stat-value">100%</div>
+                <div class="health-bar-bg">
+                    <div id="healthFill" class="health-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="startScreen" class="screen">
+        <h1>F-22 RAPTOR SIM</h1>
+        <p>Advanced Aeronautical Interceptor Prototype</p>
+        <button id="startButton">INITIATE LAUNCH</button>
+        <div class="controls-card">PILOT CONTROLS: <b>WASD / ARROWS</b> &nbsp;|&nbsp; 20MM VULCAN: <b>SPACEBAR</b></div>
+    </div>
+
+    <div id="gameOverScreen" class="screen hidden">
+        <h1 style="background: linear-gradient(135deg, #fff, #ff3366); -webkit-background-clip: text;">SYSTEM FAILURE</h1>
+        <p id="finalScore">FINAL SCORE: 0</p>
+        <button id="restartButton">REDEPLOY JET</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// UI Elements
+const startScreen = document.getElementById('startScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const startButton = document.getElementById('startButton');
+const restartButton = document.getElementById('restartButton');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const healthText = document.getElementById('healthText');
+const healthFill = document.getElementById('healthFill');
+const finalScore = document.getElementById('finalScore');
+
+// Game Engine Parameters
+let gameRunning = false;
+let score = 0;
+let animationFrameId;
+let enemySpawnTimer = 0;
+let screenShake = 0;
+
+// Input Handling
+const keys = {};
+window.addEventListener('keydown', e => { if (e.code === 'Space') keys['Space'] = true; keys[e.key] = true; });
+window.addEventListener('keyup', e => { if (e.code === 'Space') keys['Space'] = false; keys[e.key] = false; });
+
+// Sound Synthesizer
+let audioCtx;
+function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playCannonSound() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.05);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+}
+
+function playExplosionSound() {
+    if (!audioCtx) return;
+    const bufferSize = audioCtx.sampleRate * 0.4;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(600, audioCtx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.4);
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    noise.start();
+}
+
+// Atmospheric Parallax Background
+class Background {
+    constructor() {
+        this.mountains = [];
+        this.clouds = [];
+        for (let i = 0; i < 15; i++) {
+            this.mountains.push({
+                x: i * 80,
+                y: 380 + Math.random() * 60,
+                width: 120 + Math.random() * 60,
+                height: 120 + Math.random() * 100
+            });
+        }
+        for (let i = 0; i < 8; i++) {
+            this.clouds.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * (canvas.height * 0.6),
+                scale: Math.random() * 0.8 + 0.5,
+                speed: Math.random() * 1.5 + 0.5,
+                opacity: Math.random() * 0.3 + 0.15
+            });
+        }
+    }
+
+    update() {
+        this.mountains.forEach(m => {
+            m.x -= 0.8;
+            if (m.x + m.width < 0) m.x = canvas.width + Math.random() * 40;
+        });
+        this.clouds.forEach(c => {
+            c.x -= c.speed;
+            if (c.x < -200) {
+                c.x = canvas.width + 100;
+                c.y = Math.random() * (canvas.height * 0.6);
+            }
+        });
+    }
+
+    draw() {
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        skyGradient.addColorStop(0, '#040d1a');
+        skyGradient.addColorStop(0.4, '#0a2540');
+        skyGradient.addColorStop(0.8, '#1e4976');
+        skyGradient.addColorStop(1, '#386fa4');
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#0a192f';
+        this.mountains.forEach(m => {
+            ctx.beginPath();
+            ctx.moveTo(m.x, canvas.height);
+            ctx.lineTo(m.x + m.width / 2, m.y);
+            ctx.lineTo(m.x + m.width, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+        });
+
+        this.clouds.forEach(c => {
+            ctx.save();
+            ctx.translate(c.x, c.y);
+            ctx.scale(c.scale, c.scale);
+            ctx.fillStyle = `rgba(255, 255, 255, ${c.opacity})`;
+            ctx.beginPath();
+            ctx.arc(0, 0, 40, 0, Math.PI * 2);
+            ctx.arc(35, -15, 35, 0, Math.PI * 2);
+            ctx.arc(70, 0, 40, 0, Math.PI * 2);
+            ctx.arc(35, 15, 30, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        });
+    }
+}
+
+// Ultra-Realistic Player Fighter Jet Rendering (F-22 Anatomy)
+class RealisticPlayerJet {
+    constructor() {
+        this.x = 120;
+        this.y = canvas.height / 2;
+        this.speed = 6.5;
+        this.radius = 20;
+        this.health = 100;
+        this.shootCooldown = 0;
+        this.pitch = 0; // Flight pitch rotation physics
+        this.trail = [];
+    }
+
+    update() {
+        let targetPitch = 0;
+
+        if ((keys['ArrowUp'] || keys['w'] || keys['W']) && this.y > 40) {
+            this.y -= this.speed;
+            targetPitch = -0.12; // Nose tilts up
+        }
+        if ((keys['ArrowDown'] || keys['s'] || keys['S']) && this.y < canvas.height - 40) {
+            this.y += this.speed;
+            targetPitch = 0.12; // Nose tilts down
+        }
+        if ((keys['ArrowLeft'] || keys['a'] || keys['A']) && this.x > 40) this.x -= this.speed;
+        if ((keys['ArrowRight'] || keys['d'] || keys['D']) && this.x < canvas.width - 40) this.x += this.speed;
+
+        // Smooth pitch interpolation
+        this.pitch += (targetPitch - this.pitch) * 0.15;
+
+        // Realistic Engine Smoke & Heat Distortions
+        this.trail.push({ x: this.x - 45, y: this.y + (Math.random() - 0.5) * 4, alpha: 0.5, size: 5 });
+        if (this.trail.length > 20) this.trail.shift();
+        this.trail.forEach(t => { t.x -= 3.5; t.alpha -= 0.025; t.size += 0.5; });
+
+        if (this.shootCooldown > 0) this.shootCooldown--;
+        if (keys['Space'] && this.shootCooldown === 0) {
+            bullets.push(new RealBullet(this.x + 35, this.y - 4 + this.pitch * 20));
+            playCannonSound();
+            this.shootCooldown = 6;
+        }
+    }
+
+    draw() {
+        // Render Heat Haze Engine Trails
+        this.trail.forEach(t => {
+            if (t.alpha > 0) {
+                ctx.fillStyle = `rgba(180, 210, 240, ${t.alpha * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.pitch);
+
+        // 1. Dual Afterburner shock diamonds & fire
+        [-8, 8].forEach(offsetY => {
+            const flameLen = 30 + Math.random() * 10;
+            const abGrad = ctx.createLinearGradient(-42, offsetY, -42 - flameLen, offsetY);
+            abGrad.addColorStop(0, '#ffffff');
+            abGrad.addColorStop(0.2, '#38bdf8');
+            abGrad.addColorStop(0.6, '#f97316');
+            abGrad.addColorStop(1, 'transparent');
+
+            ctx.fillStyle = abGrad;
+            ctx.beginPath();
+            ctx.moveTo(-42, offsetY - 4);
+            ctx.lineTo(-42 - flameLen, offsetY);
+            ctx.lineTo(-42, offsetY + 4);
+            ctx.closePath();
+            ctx.fill();
+        });
+
+        // 2. Wings (Realistic Stealth Diamond Profile with Flaps & Panel Lines)
+        const wingGrad = ctx.createLinearGradient(0, -45, 0, 45);
+        wingGrad.addColorStop(0, '#475569');
+        wingGrad.addColorStop(0.2, '#64748b');
+        wingGrad.addColorStop(0.5, '#94a3b8');
+        wingGrad.addColorStop(0.8, '#64748b');
+        wingGrad.addColorStop(1, '#334155');
+
+        ctx.fillStyle = wingGrad;
+        ctx.beginPath();
+        ctx.moveTo(-10, 0);
+        ctx.lineTo(-25, -45);
+        ctx.lineTo(5, -45);
+        ctx.lineTo(30, 0);
+        ctx.lineTo(5, 45);
+        ctx.lineTo(-25, 45);
+        ctx.closePath();
+        ctx.fill();
+
+        // Wing Panel Accent Trim Lines
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-20, -40); ctx.lineTo(2, -40); ctx.lineTo(18, 0);
+        ctx.moveTo(-20, 40); ctx.lineTo(2, 40); ctx.lineTo(18, 0);
+        ctx.stroke();
+
+        // 3. Engine Nacelles & Air Intakes
+        const intakeGrad = ctx.createLinearGradient(0, -14, 0, 14);
+        intakeGrad.addColorStop(0, '#1e293b');
+        intakeGrad.addColorStop(0.5, '#475569');
+        intakeGrad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = intakeGrad;
+        ctx.fillRect(-28, -14, 38, 28);
+
+        // Dark Air Intake Duct Vents
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.moveTo(10, -14); ctx.lineTo(5, -14); ctx.lineTo(0, -9); ctx.lineTo(10, -9); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(10, 14); ctx.lineTo(5, 14); ctx.lineTo(0, 9); ctx.lineTo(10, 9); ctx.fill();
+
+        // 4. Main Fuselage Structure
+        const fuseGrad = ctx.createLinearGradient(0, -9, 0, 9);
+        fuseGrad.addColorStop(0, '#e2e8f0');
+        fuseGrad.addColorStop(0.4, '#94a3b8');
+        fuseGrad.addColorStop(0.7, '#64748b');
+        fuseGrad.addColorStop(1, '#334155');
+        ctx.fillStyle = fuseGrad;
+        ctx.beginPath();
+        ctx.moveTo(60, 0);   // Sharp Stealth Nose Tip
+        ctx.lineTo(20, -9);
+        ctx.lineTo(-42, -9);
+        ctx.lineTo(-42, 9);
+        ctx.lineTo(20, 9);
+        ctx.closePath();
+        ctx.fill();
+
+        // Nose Radome (Radar Cone Tip)
+        ctx.fillStyle = '#475569';
+        ctx.beginPath();
+        ctx.moveTo(60, 0);
+        ctx.lineTo(45, -4.5);
+        ctx.lineTo(45, 4.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // 5. Canted Twin Vertical Tails (Stabs)
+        const tailGrad = ctx.createLinearGradient(0, -22, 0, 22);
+        tailGrad.addColorStop(0, '#1e293b');
+        tailGrad.addColorStop(0.5, '#475569');
+        tailGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = tailGrad;
+
+        // Upper Stab
+        ctx.beginPath();
+        ctx.moveTo(-25, -6); ctx.lineTo(-44, -22); ctx.lineTo(-30, -22); ctx.lineTo(-12, -6);
+        ctx.closePath(); ctx.fill();
+
+        // Lower Stab
+        ctx.beginPath();
+        ctx.moveTo(-25, 6); ctx.lineTo(-44, 22); ctx.lineTo(-30, 22); ctx.lineTo(-12, 6);
+        ctx.closePath(); ctx.fill();
+
+        // 6. Gold Tinted Bubble Canopy
+        const canopyGrad = ctx.createLinearGradient(10, -5, 30, 5);
+        canopyGrad.addColorStop(0, '#1e293b');
+        canopyGrad.addColorStop(0.3, '#f59e0b'); // Gold stealth tinting
+        canopyGrad.addColorStop(0.7, '#0284c7'); // Iridescent reflection
+        canopyGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = canopyGrad;
+        ctx.beginPath();
+        ctx.ellipse(22, 0, 16, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cockpit Specular Highlight Curve
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(24, -2, 10, Math.PI * 1.1, Math.PI * 1.6);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+}
+
+// Realistic Kinetic Vulcan Tracers
+class RealBullet {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.speed = 22;
+        this.radius = 2;
+        this.markedForDeletion = false;
+    }
+
+    update() {
+        this.x += this.speed;
+        if (this.x > canvas.width) this.markedForDeletion = true;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 8;
+
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x - 28, this.y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// Realistic Enemy Jet Rendering (Su-57 Flanker Fighter)
+class RealisticEnemyJet {
+    constructor() {
+        this.x = canvas.width + 50;
+        this.y = Math.random() * (canvas.height - 100) + 50;
+        this.speed = Math.random() * 2 + 4.5;
+        this.radius = 20;
+        this.markedForDeletion = false;
+    }
+
+    update() {
+        this.x -= this.speed;
+        if (this.x < -60) this.markedForDeletion = true;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Afterburner Thrust
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(42, 0);
+        ctx.lineTo(55 + Math.random() * 10, -4);
+        ctx.lineTo(55 + Math.random() * 10, 4);
+        ctx.fill();
+
+        // Swept Wings with Digital Camo
+        ctx.fillStyle = '#334155';
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(20, -38);
+        ctx.lineTo(-10, -38);
+        ctx.lineTo(-30, 0);
+        ctx.lineTo(-10, 38);
+        ctx.lineTo(20, 38);
+        ctx.closePath();
+        ctx.fill();
+
+        // Camo Pattern Accents
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.moveTo(5, -20); ctx.lineTo(15, -35); ctx.lineTo(0, -35);
+        ctx.moveTo(5, 20); ctx.lineTo(15, 35); ctx.lineTo(0, 35);
+        ctx.fill();
+
+        // Fuselage Body
+        const eGrad = ctx.createLinearGradient(0, -9, 0, 9);
+        eGrad.addColorStop(0, '#991b1b');
+        eGrad.addColorStop(0.5, '#dc2626');
+        eGrad.addColorStop(1, '#7f1d1d');
+        ctx.fillStyle = eGrad;
+        ctx.beginPath();
+        ctx.moveTo(-52, 0);
+        ctx.lineTo(-10, -9);
+        ctx.lineTo(40, -9);
+        ctx.lineTo(40, 9);
+        ctx.lineTo(-10, 9);
+        ctx.closePath();
+        ctx.fill();
+
+        // Red Cockpit Canopy
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.ellipse(-16, 0, 12, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+// Explosions with Shockwave Particles
+class Particle {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 8 + 1;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.radius = Math.random() * 5 + 2;
+        this.alpha = 1;
+        this.color = ['#ff4d4d', '#ff9f1a', '#fef08a', '#ffffff'][Math.floor(Math.random() * 4)];
+        this.markedForDeletion = false;
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= 0.035;
+        if (this.alpha <= 0) this.markedForDeletion = true;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.alpha);
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// Game Loop Setup
+let background;
+let player;
+let bullets = [];
+let enemies = [];
+let particles = [];
+
+function createExplosion(x, y) {
+    for (let i = 0; i < 35; i++) particles.push(new Particle(x, y));
+    screenShake = 14;
+}
+
+function checkCollision(c1, c2) {
+    return Math.hypot(c1.x - c2.x, c1.y - c2.y) < c1.radius + c2.radius;
+}
+
+function initGame() {
+    background = new Background();
+    player = new RealisticPlayerJet();
+    bullets = [];
+    enemies = [];
+    particles = [];
+    score = 0;
+    enemySpawnTimer = 0;
+    screenShake = 0;
+
+    scoreDisplay.textContent = '000,000';
+    healthText.textContent = '100%';
+    healthFill.style.width = '100%';
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+
+    ctx.save();
+    if (screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+        screenShake *= 0.85;
+        if (screenShake < 0.5) screenShake = 0;
+    }
+
+    background.update();
+    background.draw();
+
+    player.update();
+    player.draw();
+
+    enemySpawnTimer++;
+    if (enemySpawnTimer % 45 === 0) enemies.push(new RealisticEnemyJet());
+
+    enemies.forEach(enemy => {
+        enemy.update();
+        enemy.draw();
+
+        if (checkCollision(player, enemy)) {
+            createExplosion(enemy.x, enemy.y);
+            enemy.markedForDeletion = true;
+            player.health -= 20;
+            const currentHP = Math.max(0, player.health);
+            healthText.textContent = `${currentHP}%`;
+            healthFill.style.width = `${currentHP}%`;
+
+            if (player.health <= 0) endGame();
+        }
+    });
+
+    bullets.forEach(bullet => {
+        bullet.update();
+        bullet.draw();
+
+        enemies.forEach(enemy => {
+            if (!bullet.markedForDeletion && !enemy.markedForDeletion && checkCollision(bullet, enemy)) {
+                createExplosion(enemy.x, enemy.y);
+                playExplosionSound();
+                bullet.markedForDeletion = true;
+                enemy.markedForDeletion = true;
+                score += 250;
+                scoreDisplay.textContent = String(score).padStart(6, '0');
+            }
+        });
+    });
+
+    particles.forEach(p => { p.update(); p.draw(); });
+
+    bullets = bullets.filter(b => !b.markedForDeletion);
+    enemies = enemies.filter(e => !e.markedForDeletion);
+    particles = particles.filter(p => !p.markedForDeletion);
+
+    ctx.restore();
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+    initAudio();
+    initGame();
+    gameRunning = true;
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+    gameRunning = false;
+    cancelAnimationFrame(animationFrameId);
+    playExplosionSound();
+    finalScore.textContent = `FINAL SCORE: ${score}`;
+    gameOverScreen.classList.remove('hidden');
+}
+
+startButton.addEventListener('click', startGame);
+restartButton.addEventListener('click', startGame);
+</script>
+
+</body>
+</html>
