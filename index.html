@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Air Dominance - Realistic Jet Interceptor</title>
+    <title>Air Dominance - Realistic Air Combat</title>
     <style>
         * {
             box-sizing: border-box;
@@ -172,8 +172,8 @@
     </div>
 
     <div id="startScreen" class="screen">
-        <h1>F-22 RAPTOR SIM</h1>
-        <p>Advanced Aeronautical Interceptor Prototype</p>
+        <h1>SU-57 INTERCEPTOR</h1>
+        <p>Tactical Air Engagement Simulator</p>
         <button id="startButton">INITIATE LAUNCH</button>
         <div class="controls-card">PILOT CONTROLS: <b>WASD / ARROWS</b> &nbsp;|&nbsp; 20MM VULCAN: <b>SPACEBAR</b></div>
     </div>
@@ -331,7 +331,7 @@ class Background {
     }
 }
 
-// Ultra-Realistic Player Fighter Jet Rendering (F-22 Anatomy)
+// Player Jet Class
 class RealisticPlayerJet {
     constructor() {
         this.x = 120;
@@ -340,7 +340,7 @@ class RealisticPlayerJet {
         this.radius = 20;
         this.health = 100;
         this.shootCooldown = 0;
-        this.pitch = 0; // Flight pitch rotation physics
+        this.pitch = 0;
         this.trail = [];
     }
 
@@ -349,19 +349,17 @@ class RealisticPlayerJet {
 
         if ((keys['ArrowUp'] || keys['w'] || keys['W']) && this.y > 40) {
             this.y -= this.speed;
-            targetPitch = -0.12; // Nose tilts up
+            targetPitch = -0.12;
         }
         if ((keys['ArrowDown'] || keys['s'] || keys['S']) && this.y < canvas.height - 40) {
             this.y += this.speed;
-            targetPitch = 0.12; // Nose tilts down
+            targetPitch = 0.12;
         }
         if ((keys['ArrowLeft'] || keys['a'] || keys['A']) && this.x > 40) this.x -= this.speed;
         if ((keys['ArrowRight'] || keys['d'] || keys['D']) && this.x < canvas.width - 40) this.x += this.speed;
 
-        // Smooth pitch interpolation
         this.pitch += (targetPitch - this.pitch) * 0.15;
 
-        // Realistic Engine Smoke & Heat Distortions
         this.trail.push({ x: this.x - 45, y: this.y + (Math.random() - 0.5) * 4, alpha: 0.5, size: 5 });
         if (this.trail.length > 20) this.trail.shift();
         this.trail.forEach(t => { t.x -= 3.5; t.alpha -= 0.025; t.size += 0.5; });
@@ -375,7 +373,6 @@ class RealisticPlayerJet {
     }
 
     draw() {
-        // Render Heat Haze Engine Trails
         this.trail.forEach(t => {
             if (t.alpha > 0) {
                 ctx.fillStyle = `rgba(180, 210, 240, ${t.alpha * 0.4})`;
@@ -389,7 +386,6 @@ class RealisticPlayerJet {
         ctx.translate(this.x, this.y);
         ctx.rotate(this.pitch);
 
-        // 1. Dual Afterburner shock diamonds & fire
         [-8, 8].forEach(offsetY => {
             const flameLen = 30 + Math.random() * 10;
             const abGrad = ctx.createLinearGradient(-42, offsetY, -42 - flameLen, offsetY);
@@ -407,7 +403,6 @@ class RealisticPlayerJet {
             ctx.fill();
         });
 
-        // 2. Wings (Realistic Stealth Diamond Profile with Flaps & Panel Lines)
         const wingGrad = ctx.createLinearGradient(0, -45, 0, 45);
         wingGrad.addColorStop(0, '#475569');
         wingGrad.addColorStop(0.2, '#64748b');
@@ -426,7 +421,6 @@ class RealisticPlayerJet {
         ctx.closePath();
         ctx.fill();
 
-        // Wing Panel Accent Trim Lines
         ctx.strokeStyle = '#334155';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -434,7 +428,6 @@ class RealisticPlayerJet {
         ctx.moveTo(-20, 40); ctx.lineTo(2, 40); ctx.lineTo(18, 0);
         ctx.stroke();
 
-        // 3. Engine Nacelles & Air Intakes
         const intakeGrad = ctx.createLinearGradient(0, -14, 0, 14);
         intakeGrad.addColorStop(0, '#1e293b');
         intakeGrad.addColorStop(0.5, '#475569');
@@ -442,14 +435,12 @@ class RealisticPlayerJet {
         ctx.fillStyle = intakeGrad;
         ctx.fillRect(-28, -14, 38, 28);
 
-        // Dark Air Intake Duct Vents
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
         ctx.moveTo(10, -14); ctx.lineTo(5, -14); ctx.lineTo(0, -9); ctx.lineTo(10, -9); ctx.fill();
         ctx.beginPath();
         ctx.moveTo(10, 14); ctx.lineTo(5, 14); ctx.lineTo(0, 9); ctx.lineTo(10, 9); ctx.fill();
 
-        // 4. Main Fuselage Structure
         const fuseGrad = ctx.createLinearGradient(0, -9, 0, 9);
         fuseGrad.addColorStop(0, '#e2e8f0');
         fuseGrad.addColorStop(0.4, '#94a3b8');
@@ -457,7 +448,7 @@ class RealisticPlayerJet {
         fuseGrad.addColorStop(1, '#334155');
         ctx.fillStyle = fuseGrad;
         ctx.beginPath();
-        ctx.moveTo(60, 0);   // Sharp Stealth Nose Tip
+        ctx.moveTo(60, 0);
         ctx.lineTo(20, -9);
         ctx.lineTo(-42, -9);
         ctx.lineTo(-42, 9);
@@ -465,7 +456,6 @@ class RealisticPlayerJet {
         ctx.closePath();
         ctx.fill();
 
-        // Nose Radome (Radar Cone Tip)
         ctx.fillStyle = '#475569';
         ctx.beginPath();
         ctx.moveTo(60, 0);
@@ -474,35 +464,30 @@ class RealisticPlayerJet {
         ctx.closePath();
         ctx.fill();
 
-        // 5. Canted Twin Vertical Tails (Stabs)
         const tailGrad = ctx.createLinearGradient(0, -22, 0, 22);
         tailGrad.addColorStop(0, '#1e293b');
         tailGrad.addColorStop(0.5, '#475569');
         tailGrad.addColorStop(1, '#0f172a');
         ctx.fillStyle = tailGrad;
 
-        // Upper Stab
         ctx.beginPath();
         ctx.moveTo(-25, -6); ctx.lineTo(-44, -22); ctx.lineTo(-30, -22); ctx.lineTo(-12, -6);
         ctx.closePath(); ctx.fill();
 
-        // Lower Stab
         ctx.beginPath();
         ctx.moveTo(-25, 6); ctx.lineTo(-44, 22); ctx.lineTo(-30, 22); ctx.lineTo(-12, 6);
         ctx.closePath(); ctx.fill();
 
-        // 6. Gold Tinted Bubble Canopy
         const canopyGrad = ctx.createLinearGradient(10, -5, 30, 5);
         canopyGrad.addColorStop(0, '#1e293b');
-        canopyGrad.addColorStop(0.3, '#f59e0b'); // Gold stealth tinting
-        canopyGrad.addColorStop(0.7, '#0284c7'); // Iridescent reflection
+        canopyGrad.addColorStop(0.3, '#f59e0b');
+        canopyGrad.addColorStop(0.7, '#0284c7');
         canopyGrad.addColorStop(1, '#0f172a');
         ctx.fillStyle = canopyGrad;
         ctx.beginPath();
         ctx.ellipse(22, 0, 16, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Cockpit Specular Highlight Curve
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -513,7 +498,6 @@ class RealisticPlayerJet {
     }
 }
 
-// Realistic Kinetic Vulcan Tracers
 class RealBullet {
     constructor(x, y) {
         this.x = x;
@@ -548,78 +532,180 @@ class RealBullet {
     }
 }
 
-// Realistic Enemy Jet Rendering (Su-57 Flanker Fighter)
+// Highly Realistic Enemy Jet (Su-57 Stealth Flanker Anatomy)
 class RealisticEnemyJet {
     constructor() {
-        this.x = canvas.width + 50;
+        this.x = canvas.width + 60;
         this.y = Math.random() * (canvas.height - 100) + 50;
-        this.speed = Math.random() * 2 + 4.5;
-        this.radius = 20;
+        this.speed = Math.random() * 2.5 + 4.5;
+        this.radius = 22;
         this.markedForDeletion = false;
+        
+        // Realistic flight wave oscillation
+        this.initialY = this.y;
+        this.waveAngle = Math.random() * Math.PI * 2;
+        this.waveSpeed = Math.random() * 0.05 + 0.02;
+        this.waveAmplitude = Math.random() * 30 + 10;
+        
+        this.trail = [];
     }
 
     update() {
         this.x -= this.speed;
-        if (this.x < -60) this.markedForDeletion = true;
+        
+        // Dynamic Sine-Wave Evasive Maneuvers
+        this.waveAngle += this.waveSpeed;
+        this.y = this.initialY + Math.sin(this.waveAngle) * this.waveAmplitude;
+
+        // Exhaust heat trails
+        this.trail.push({ x: this.x + 45, y: this.y, alpha: 0.4, size: 4 });
+        if (this.trail.length > 15) this.trail.shift();
+        this.trail.forEach(t => { t.x += 3; t.alpha -= 0.025; t.size += 0.4; });
+
+        if (this.x < -70) this.markedForDeletion = true;
     }
 
     draw() {
+        // Heat Haze Trail
+        this.trail.forEach(t => {
+            if (t.alpha > 0) {
+                ctx.fillStyle = `rgba(239, 68, 68, ${t.alpha * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+
         ctx.save();
         ctx.translate(this.x, this.y);
 
-        // Afterburner Thrust
-        ctx.fillStyle = '#f97316';
-        ctx.beginPath();
-        ctx.moveTo(42, 0);
-        ctx.lineTo(55 + Math.random() * 10, -4);
-        ctx.lineTo(55 + Math.random() * 10, 4);
-        ctx.fill();
+        // 1. Dual Vectoring Thrust Engines (Facing Right for Leftward Movement)
+        [-7, 7].forEach(offsetY => {
+            const flameLen = 28 + Math.random() * 12;
+            const abGrad = ctx.createLinearGradient(40, offsetY, 40 + flameLen, offsetY);
+            abGrad.addColorStop(0, '#ffffff');
+            abGrad.addColorStop(0.2, '#ef4444');
+            abGrad.addColorStop(0.7, '#f97316');
+            abGrad.addColorStop(1, 'transparent');
 
-        // Swept Wings with Digital Camo
-        ctx.fillStyle = '#334155';
+            ctx.fillStyle = abGrad;
+            ctx.beginPath();
+            ctx.moveTo(40, offsetY - 3.5);
+            ctx.lineTo(40 + flameLen, offsetY);
+            ctx.lineTo(40, offsetY + 3.5);
+            ctx.closePath();
+            ctx.fill();
+        });
+
+        // 2. Wide Swept Blended Wings (Realistic Su-57 Diamond Silhouette)
+        const wingGrad = ctx.createLinearGradient(0, -48, 0, 48);
+        wingGrad.addColorStop(0, '#1e293b');
+        wingGrad.addColorStop(0.3, '#334155');
+        wingGrad.addColorStop(0.5, '#475569');
+        wingGrad.addColorStop(0.7, '#334155');
+        wingGrad.addColorStop(1, '#0f172a');
+
+        ctx.fillStyle = wingGrad;
         ctx.beginPath();
-        ctx.moveTo(10, 0);
-        ctx.lineTo(20, -38);
-        ctx.lineTo(-10, -38);
-        ctx.lineTo(-30, 0);
-        ctx.lineTo(-10, 38);
-        ctx.lineTo(20, 38);
+        ctx.moveTo(15, 0);
+        ctx.lineTo(28, -48);
+        ctx.lineTo(-10, -48);
+        ctx.lineTo(-32, 0);
+        ctx.lineTo(-10, 48);
+        ctx.lineTo(28, 48);
         ctx.closePath();
         ctx.fill();
 
-        // Camo Pattern Accents
+        // Digital Camouflage Armor Plates (Splinter Camo)
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.moveTo(5, -20); ctx.lineTo(15, -35); ctx.lineTo(0, -35);
-        ctx.moveTo(5, 20); ctx.lineTo(15, 35); ctx.lineTo(0, 35);
-        ctx.fill();
-
-        // Fuselage Body
-        const eGrad = ctx.createLinearGradient(0, -9, 0, 9);
-        eGrad.addColorStop(0, '#991b1b');
-        eGrad.addColorStop(0.5, '#dc2626');
-        eGrad.addColorStop(1, '#7f1d1d');
-        ctx.fillStyle = eGrad;
+        ctx.moveTo(10, -25); ctx.lineTo(22, -45); ctx.lineTo(0, -45); ctx.closePath(); ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(-52, 0);
-        ctx.lineTo(-10, -9);
-        ctx.lineTo(40, -9);
-        ctx.lineTo(40, 9);
-        ctx.lineTo(-10, 9);
+        ctx.moveTo(10, 25); ctx.lineTo(22, 45); ctx.lineTo(0, 45); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-10, -10); ctx.lineTo(-25, 0); ctx.lineTo(-10, 10); ctx.closePath(); ctx.fill();
+
+        // Panel Trim Lines
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(20, -42); ctx.lineTo(-5, -42); ctx.lineTo(-20, 0);
+        ctx.moveTo(20, 42); ctx.lineTo(-5, 42); ctx.lineTo(-20, 0);
+        ctx.stroke();
+
+        // 3. Engine Nacelles & Blended Wing Body
+        const nacelleGrad = ctx.createLinearGradient(0, -12, 0, 12);
+        nacelleGrad.addColorStop(0, '#0f172a');
+        nacelleGrad.addColorStop(0.5, '#334155');
+        nacelleGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = nacelleGrad;
+        ctx.fillRect(-12, -13, 50, 26);
+
+        // 4. Fuselage Main Body (Facing Left)
+        const fuseGrad = ctx.createLinearGradient(0, -9, 0, 9);
+        fuseGrad.addColorStop(0, '#475569');
+        fuseGrad.addColorStop(0.4, '#334155');
+        fuseGrad.addColorStop(0.8, '#1e293b');
+        fuseGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = fuseGrad;
+        ctx.beginPath();
+        ctx.moveTo(-62, 0); // Nose Tip Facing Left
+        ctx.lineTo(-22, -8.5);
+        ctx.lineTo(38, -8.5);
+        ctx.lineTo(38, 8.5);
+        ctx.lineTo(-22, 8.5);
         ctx.closePath();
         ctx.fill();
 
-        // Red Cockpit Canopy
-        ctx.fillStyle = '#fef08a';
+        // Radome Nose Tip (IR Sensor Housing)
+        ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.ellipse(-16, 0, 12, 4.5, 0, 0, Math.PI * 2);
+        ctx.moveTo(-62, 0);
+        ctx.lineTo(-48, -4);
+        ctx.lineTo(-48, 4);
+        ctx.closePath();
         ctx.fill();
+
+        // 5. Canted Twin Tail Fins
+        const tailGrad = ctx.createLinearGradient(0, -22, 0, 22);
+        tailGrad.addColorStop(0, '#0f172a');
+        tailGrad.addColorStop(0.5, '#1e293b');
+        tailGrad.addColorStop(1, '#020617');
+        ctx.fillStyle = tailGrad;
+
+        // Upper Tail Fin
+        ctx.beginPath();
+        ctx.moveTo(20, -6); ctx.lineTo(38, -24); ctx.lineTo(25, -24); ctx.lineTo(8, -6);
+        ctx.closePath(); ctx.fill();
+
+        // Lower Tail Fin
+        ctx.beginPath();
+        ctx.moveTo(20, 6); ctx.lineTo(38, 24); ctx.lineTo(25, 24); ctx.lineTo(8, 6);
+        ctx.closePath(); ctx.fill();
+
+        // 6. Crimson Tinted Cockpit Glass
+        const canopyGrad = ctx.createLinearGradient(-30, -4, -10, 4);
+        canopyGrad.addColorStop(0, '#450a0a');
+        canopyGrad.addColorStop(0.4, '#dc2626'); // Threat Red Tint
+        canopyGrad.addColorStop(0.8, '#f59e0b');
+        canopyGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = canopyGrad;
+        ctx.beginPath();
+        ctx.ellipse(-24, 0, 14, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Canopy Specular Flare Highlight
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(-24, -1.5, 8, Math.PI * 1.1, Math.PI * 1.6);
+        ctx.stroke();
 
         ctx.restore();
     }
 }
 
-// Explosions with Shockwave Particles
+// Explosions & Particles
 class Particle {
     constructor(x, y) {
         this.x = x;
@@ -654,7 +740,7 @@ class Particle {
     }
 }
 
-// Game Loop Setup
+// Game Setup & Loop
 let background;
 let player;
 let bullets = [];
